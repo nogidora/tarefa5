@@ -6,10 +6,10 @@ use ieee.numeric_std.all;
 
 entity Diff_Eq is
    port(
-         x, u, y, dx, a : in  integer;
+         x, u, y, dx, a : in  std_logic_vector (7 downto 0);
          clock          : in  std_logic;
          load           : in  std_logic;
-         y_final        : out integer
+         y_final        : out std_logic_vector (15 downto 0)
       );
 end entity Diff_Eq;
 
@@ -20,7 +20,7 @@ architecture arq_Diff_Eq of Diff_Eq is
 -----COMPONENTS------
 ---------------------
 	component somador_m_bits is
-		GENERIC (Z : integer := 16);
+		GENERIC (Z : integer := 8);
 		port (
 				a, b        : in  std_logic_vector(Z-1 downto 0);
 				c0, clock   : in  std_logic;
@@ -41,69 +41,66 @@ architecture arq_Diff_Eq of Diff_Eq is
 
 	end component;
 
+
 --------------------
 ------SIGNALS-------
 --------------------
 	signal s_x : std_logic_vector (7 downto 0);
-	signal s_u : integer;
-	signal s_y : integer;
+	signal s_u : std_logic_vector (7 downto 0);
+	signal s_y : std_logic_vector (7 downto 0);
+
+	signal s_STAGE : std_logic;
 	
 	signal contador : integer;
 
-	signal s_S1 : 
+	signal s_S1 : std_logic_vector (7 downto 0); -- soma1, soma2, etc...
+	signal s_S2 : std_logic_vector (7 downto 0);
+	signal s_S3 : std_logic_vector (7 downto 0);
+	signal s_S4 : std_logic_vector (7 downto 0);
 
-	signal s_x1, s_u1, s_y1 : integer; -- temporarios do process
+	signal s_M1 : std_logic_vector (15 downto 0); -- mult1, mult2, etc...
+	signal s_M2 : std_logic_vector (15 downto 0);
+	signal s_M3 : std_logic_vector (15 downto 0);
+	signal s_M4 : std_logic_vector (15 downto 0);
+	signal s_M5 : std_logic_vector (15 downto 0); -- 16 bits pq multiplicou 
+	
+
+	signal s_x1, s_u1, s_y1 : std_logic_vector (15 downto 0); -- temporarios do process
 
 -------------------
 -------ARCH--------
 -------------------
 begin
-	process (clock, load) 
+	STAGE1: process (clock, load) 
 	begin
 		if (clock'event AND clock = '1' AND load = '1') then
-			s_x <= x;
+			s_x <= x;  -- so carrega no primeiro ciclo
 			s_y <= y;
 			s_u <= u;
-			if (contador < a) then
 			
-			--           S1	
-			-- s_x1 <= x + dx;
+			if (contador < a) then				
+				s_x1 <= s_S1;
+			    s_u1 <= s_S3
+				s_y1 <= s_S4;
+				-- s_STAGE <= '2';
 
-
-			s_x1 <= s_S1;
-			--             S2                     S3
-			-- s_u1 <= s_u - (3 * s_x * s_u * dx) - (3 * s_y * dx);  2 somas
-			---->       A  -          B          -       C;
-			 
-			----> A = s_u;
+			----------
+				s_x <= s_x1;
+				s_u <= s_u1;
+				s_y <= s_y1;
 		
-			--           M1  s_B    M2     						
-			----> B = (3 * dx * s_x * s_u ) 3 mults;
-			---->      [B1]   *   [B2]
-			
-			--
-			
-			--           M1   M4        
-			----> C = (3 * dx * s_y) 2 mults;
-			---->       [C1]  *  dx
-			
-			
-			s_u1 <= s_S3;
-
-			--             S4    M5
-			-- s_y1 <= s_y + s_u * dx; 
-			---->              [B2]
-			
-			s_y1 <= s_S4;
-				
-			s_x <= s_x1;
-			s_u <= s_u1;
-			s_y <= s_y1;
-		
-			contador <= contador + 1;
+				contador <= contador + 1;
 			end if;
 		end if;
  
+	end process;
+
+
+	STAGE2: process (clock)
+	begin
+		if(s_STAGE = '2')
+			-- s_STAGE <= '1';
+		enf if;
 	end process;
 
 -------------------
@@ -115,17 +112,18 @@ begin
 								dx,
 								'0',
 								clock,
-								s_x1,
+								s_S1,
 								open,
 								open
 
 	);
 	
 	-- s_u1 <= s_u - (3 * s_x * s_u * dx)
+	--          A  -           B
 	S2: somador_m_bits port map(
-								s_u,  -- A = s_u
-								s_B,
-								'0',
+								s_u,
+								not (s_B (7 downto 0)),
+								'1',
 								clock,
 								s_S2,
 								open,
@@ -133,12 +131,12 @@ begin
 
 	);
 	
-	-- s_S3 = (s_S2 - (3 * s_y * dx)
+	-- s_S3 = s_S2 - (3 * s_y * dx)
 	--                      C
 	S3: somador_m_bits port map(
 								s_S2, 
-								s_C,
-								'0',
+								not(s_C (7 downto 0)),
+								'1',
 								clock,
 								s_S3,
 								open,
@@ -149,7 +147,7 @@ begin
 	-- s_y1 = s_y + s_M5
 	S4: somador_m_bits port map(
 						s_y, 
-						s_M5,
+						s_M5 (7 downto 0),
 						'0',
 						clock,
 						s_S4,
@@ -158,8 +156,6 @@ begin
 
 );
 	
-
-
 
 	-- 3 * dx 
 	M1: Mult_Sequencial port map(
@@ -213,3 +209,28 @@ begin
 	y_final <= s_y;
 	
 end architecture arq_Diff_Eq;
+
+
+	--           S1	
+			-- s_x1 <= x + dx;
+
+			--             S2                     S3
+			-- s_u1 <= s_u - (3 * s_x * s_u * dx) - (3 * s_y * dx);  2 somas
+			---->       A  -          B          -       C;
+			 
+			----> A = s_u;
+		
+			--           M1  s_B    M2     						
+			----> B = (3 * dx * s_x * s_u ) 3 mults;
+			---->      [s_M1]   *   [s_M2]
+			
+			--
+			
+			--           M1   M4        
+			----> C = (3 * dx * s_y) 2 mults;
+			---->       [s_M1]  *  dx
+			
+			
+			--             S4    M5
+			-- s_y1 <= s_y + s_u * dx; 
+			---->              [s_M2]

@@ -3,7 +3,7 @@ use ieee.std_logic_1164.ALL;
 use ieee.numeric_std.all;
 
 entity somador_m_bits is
-    GENERIC (Z : integer := 10); --pode mudar com port generic
+    GENERIC (Z : integer := 8); --pode mudar com port generic
 	 
 	 port (a, b        : in std_logic_vector(Z-1 downto 0);
 			 c0, clock   : in std_logic;
