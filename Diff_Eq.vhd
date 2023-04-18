@@ -6,10 +6,11 @@ use ieee.numeric_std.all;
 
 entity Diff_Eq is
    port(
-         x, u, y, dx, a : in  std_logic_vector (7 downto 0);
-         clock          : in  std_logic;
-         load           : in  std_logic;
-         y_final        : out std_logic_vector (15 downto 0)
+         x, u, y, dx : in  std_logic_vector (7 downto 0);
+		 a           : in integer;
+         clock       : in  std_logic;
+         load        : in  std_logic;
+         y_final     : out std_logic_vector (7 downto 0)
       );
 end entity Diff_Eq;
 
@@ -20,11 +21,11 @@ architecture arq_Diff_Eq of Diff_Eq is
 -----COMPONENTS------
 ---------------------
 	component somador_m_bits is
-		GENERIC (Z : integer := 8);
+		GENERIC (M : integer := 8);
 		port (
-				a, b        : in  std_logic_vector(Z-1 downto 0);
+				a, b        : in  std_logic_vector(M-1 downto 0);
 				c0, clock   : in  std_logic;
-				s           : out std_logic_vector(Z-1 downto 0);
+				s           : out std_logic_vector(M-1 downto 0);
 				cout, overf : out std_logic
 			 );
 	end component;
@@ -49,7 +50,7 @@ architecture arq_Diff_Eq of Diff_Eq is
 	signal s_u : std_logic_vector (7 downto 0);
 	signal s_y : std_logic_vector (7 downto 0);
 
-	signal s_STAGE : std_logic;
+	signal s_STAGE : integer;
 	
 	signal contador : integer;
 
@@ -58,6 +59,10 @@ architecture arq_Diff_Eq of Diff_Eq is
 	signal s_S3 : std_logic_vector (7 downto 0);
 	signal s_S4 : std_logic_vector (7 downto 0);
 
+	signal s_A  : std_logic_vector (15 downto 0);
+	signal s_B  : std_logic_vector (15 downto 0); -- sao de 16 bits pq contém produtos com multiplicador
+	signal s_C  : std_logic_vector (15 downto 0);
+
 	signal s_M1 : std_logic_vector (15 downto 0); -- mult1, mult2, etc...
 	signal s_M2 : std_logic_vector (15 downto 0);
 	signal s_M3 : std_logic_vector (15 downto 0);
@@ -65,7 +70,7 @@ architecture arq_Diff_Eq of Diff_Eq is
 	signal s_M5 : std_logic_vector (15 downto 0); -- 16 bits pq multiplicou 
 	
 
-	signal s_x1, s_u1, s_y1 : std_logic_vector (15 downto 0); -- temporarios do process
+	signal s_x1, s_u1, s_y1 : std_logic_vector (7 downto 0); -- temporarios do process
 
 -------------------
 -------ARCH--------
@@ -79,9 +84,9 @@ begin
 			s_u <= u;
 			
 			if (contador < a) then				
-				s_x1 <= s_S1;
-			    s_u1 <= s_S3
-				s_y1 <= s_S4;
+				s_x1 <= s_S1 (7 downto 0);
+			    s_u1 <= s_S3 (7 downto 0);
+				s_y1 <= s_S4 (7 downto 0);
 				-- s_STAGE <= '2';
 
 			----------
@@ -98,9 +103,9 @@ begin
 
 	STAGE2: process (clock)
 	begin
-		if(s_STAGE = '2')
+		if(s_STAGE = 2) then
 			-- s_STAGE <= '1';
-		enf if;
+		end if;
 	end process;
 
 -------------------
@@ -178,7 +183,7 @@ begin
 							);
 	-- M3 = M1 * M2
 	M3: Mult_Sequencial port map(
-							s_M1, s_M2,
+							s_M1(7 downto 0), s_M2(7 downto 0),
 							clock,
 							load,
 							open,
@@ -188,7 +193,7 @@ begin
 
     -- s_C = s_M1 * s_y
 	M4: Mult_Sequencial port map(
-							s_M1, s_y,
+							s_M1(7 downto 0), s_y (7 downto 0),
 							clock,
 							load,
 							open,
@@ -206,7 +211,7 @@ begin
 		s_M5
 		);
 				
-	y_final <= s_y;
+	y_final <= s_y (7 downto 0);
 	
 end architecture arq_Diff_Eq;
 
