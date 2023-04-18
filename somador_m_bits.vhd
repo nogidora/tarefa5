@@ -3,11 +3,11 @@ use ieee.std_logic_1164.ALL;
 use ieee.numeric_std.all;
 
 entity somador_m_bits is
-    GENERIC (Z : integer := 8); --pode mudar com port generic
+    GENERIC (M : integer := 8); --pode mudar com port generic
 	 
-	 port (a, b        : in std_logic_vector(Z-1 downto 0);
+	 port (a, b        : in std_logic_vector(M-1 downto 0);
 			 c0, clock   : in std_logic;
-			 s           : out std_logic_vector(Z-1 downto 0);
+			 s           : out std_logic_vector(M-1 downto 0);
           cout, overf : out std_logic);
 end somador_m_bits;
 
@@ -20,10 +20,10 @@ architecture arq_somador_m_bits OF somador_m_bits is
 			 s, cout   : out std_logic);
 	end component;
 
-	signal sinal_cin : std_logic_vector(Z downto 0);
-	signal b_xor_c0: std_logic_vector(Z-1 downto 0);
+	signal sinal_cin : std_logic_vector(M downto 0);
+	signal b_xor_c0: std_logic_vector(M-1 downto 0);
 begin
-	G1  : FOR i IN 0 TO (Z-1) GENERATE
+	G1  : FOR i IN 0 TO (M-1) GENERATE
 	b_xor_c0(i) <= b(i) XOR c0;
 	SOM : somadorbit port map (a(i),
                               b_xor_c0(i),--(b(i) XOR c0),
@@ -37,8 +37,8 @@ begin
 	begin
 		if(clock'event AND clock ='1') then
 			sinal_cin(0) <= c0;
-			cout         <= sinal_cin(Z-1);
-			overf        <= sinal_cin(Z-1) XOR sinal_cin(Z-2); -- a partir dos 2 bits mais significativos verifica o overfow
+			cout         <= sinal_cin(M-1);
+			overf        <= sinal_cin(M-1) XOR sinal_cin(M-2); -- a partir dos 2 bits mais significativos verifica o overfow
 		end if;
 	end process;
 end arq_somador_m_bits;
