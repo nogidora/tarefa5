@@ -1,5 +1,3 @@
--- differential equation solver using 2 stage pipeline and
--- unlimited resources;
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -7,7 +5,12 @@ use ieee.numeric_std.all;
 entity Diff_Eq is
    port(
          x, u, y, dx : in  std_logic_vector (7 downto 0);
-		 a           : in integer;
+			x_out, u_out, y_out : out std_logic_vector (7 downto 0);
+			S1_out, S2_out, S3_out, S4_out : out std_logic_vector (7 downto 0); 
+			A_OUT, B_OUT, C_OUT, BNEG_OUT, CNEG_OUT : out std_logic_vector (7 downto 0);
+			M1_OUT, M2_OUT, M3_OUT, M4_OUT, M5_OUT : out std_logic_vector (15 downto 0);
+			cont_out    : out integer;
+		   a           : in integer;
          clock       : in  std_logic;
          load        : in  std_logic;
          y_final     : out std_logic_vector (7 downto 0)
@@ -32,7 +35,7 @@ architecture arq_Diff_Eq of Diff_Eq is
 --
 	component Mult_Sequencial
 		GENERIC (N : integer := 16; -- tamanho do produto
-				 M : integer := 8);
+				   M : integer := 8);
 		port (
 			MD, MR        : in std_logic_vector(M-1 downto 0);
 			clock         : in std_logic;
@@ -52,7 +55,7 @@ architecture arq_Diff_Eq of Diff_Eq is
 
 	signal s_STAGE : integer;
 	
-	signal contador : integer := 0;
+	signal contador : integer;
 
 	signal s_S1 : std_logic_vector (7 downto 0); -- soma1, soma2, etc...
 	signal s_S2 : std_logic_vector (7 downto 0);
@@ -63,6 +66,10 @@ architecture arq_Diff_Eq of Diff_Eq is
 	signal s_B  : std_logic_vector (15 downto 0); -- sao de 16 bits pq contém produtos com multiplicador
 	signal s_C  : std_logic_vector (15 downto 0);
 
+	
+	signal Bnegado : std_logic_vector (7 downto 0);
+	signal Cnegado : std_logic_vector (7 downto 0);
+	
 	signal s_M1 : std_logic_vector (15 downto 0); -- mult1, mult2, etc...
 	signal s_M2 : std_logic_vector (15 downto 0);
 	signal s_M3 : std_logic_vector (15 downto 0);
@@ -82,31 +89,56 @@ begin
 			s_x <= x;  -- so carrega no primeiro ciclo
 			s_y <= y;
 			s_u <= u;
+			contador <= to_integer(unsigned(s_x));
 		else 	
 			if (rising_edge(clock)  AND (contador < a)) then				
+			
+			   Bnegado <= not (s_B (7 downto 0));
+				Cnegado <= not (s_C (7 downto 0));
+				
 				s_x1 <= s_S1 (7 downto 0);
-			    s_u1 <= s_S3 (7 downto 0);
+			   s_u1 <= s_S3 (7 downto 0);
 				s_y1 <= s_S4 (7 downto 0);
-				-- s_STAGE <= '2';
-
-			----------
+						
 				s_x <= s_x1;
 				s_u <= s_u1;
 				s_y <= s_y1;
-		
-				contador <= contador + 1;
+				
+				
+				
+				
+				
+				
+			--- para debugar	
+				x_out <= s_x;
+				y_out <= s_y;
+			   u_out <= s_u;
+				
+				S1_out <= s_S1;
+				S2_out <= s_S2;
+				S3_out <= s_S3;
+			   S4_out <= s_S4;
+				A_OUT  <=s_A(7 downto 0);
+				B_OUT <= s_B(7 downto 0);
+				BNEG_OUT <= Bnegado (7 downto 0);
+				
+				C_OUT <= s_C(7 downto 0);
+				BNEG_OUT <= Cnegado;
+			
+				M1_OUT <= s_M1;
+				M2_OUT <= s_M2;
+				M3_OUT <= s_M3;
+				M4_OUT <= s_M4;
+				M5_OUT <= s_M5;
+				-------
+				
+				contador <= to_integer (unsigned (s_x));
+				cont_out <= contador;
+				y_final <= s_y (7 downto 0);
 			end if;
 		end if;
  
 	end process;
-
-
-	--STAGE2: process (clock)
-	--begin
-	--	if(s_STAGE = 2) then
-			-- s_STAGE <= '1';
-	--	end if;
---	end process;
 
 -------------------
 -----PORTMAPS------
@@ -123,11 +155,11 @@ begin
 
 	);
 	
-	-- s_u1 <= s_u - (3 * s_x * s_u * dx)
+	-- s_S2 <= s_u - (3 * s_x * s_u * dx)
 	--          A  -           B
 	S2: somador_m_bits port map(
 								s_u,
-								not (s_B (7 downto 0)),
+								Bnegado,
 								'1',
 								clock,
 								s_S2,
@@ -140,7 +172,7 @@ begin
 	--                      C
 	S3: somador_m_bits port map(
 								s_S2, 
-								not(s_C (7 downto 0)),
+								Cnegado,
 								'1',
 								clock,
 								s_S3,
@@ -151,8 +183,8 @@ begin
 	
 	-- s_y1 = s_y + s_M5
 	S4: somador_m_bits port map(
-						s_y, 
-						s_M5 (7 downto 0),
+						s_y (7 downto 0), 
+						s_M5(7 downto 0),
 						'0',
 						clock,
 						s_S4,
@@ -164,7 +196,7 @@ begin
 
 	-- 3 * dx 
 	M1: Mult_Sequencial port map(
-							"00000101", dx ,
+							"00000011", dx(7 downto 0),
 							clock,
 							load,
 							open,
@@ -172,16 +204,17 @@ begin
 							s_M1
 							);
 	
-	-- s_u * dx
+	-- s_u * s_x
 	M2: Mult_Sequencial port map(
-							s_x, s_u,
+							s_x(7 downto 0), s_u (7 downto 0),
 							clock,
 							load,
 							open,
 							open,
 							s_M2
 							);
-	-- M3 = M1 * M2
+							
+	-- s_B = M3 = M1 * M2
 	M3: Mult_Sequencial port map(
 							s_M1(7 downto 0), s_M2(7 downto 0),
 							clock,
@@ -203,15 +236,15 @@ begin
 				
 	-- s_u * dx
 	M5: Mult_Sequencial port map(
-		s_u, dx,
-		clock,
-		load,
-		open,
-		open,
-		s_M5
+								s_u(7 downto 0), dx(7 downto 0),
+								clock,
+								load,
+								open,
+								open,
+								s_M5
 		);
 				
-	y_final <= s_y (7 downto 0);
+	
 	
 end architecture arq_Diff_Eq;
 
@@ -225,7 +258,7 @@ end architecture arq_Diff_Eq;
 			 
 			----> A = s_u;
 		
-			--           M1  s_B    M2     						
+			--            M1      M2     						
 			----> B = (3 * dx * s_x * s_u ) 3 mults;
 			---->      [s_M1]   *   [s_M2]
 			
