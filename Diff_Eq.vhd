@@ -52,7 +52,7 @@ architecture arq_Diff_Eq of Diff_Eq is
 
 	signal s_STAGE : integer;
 	
-	signal contador : integer;
+	signal contador : integer := 0;
 
 	signal s_S1 : std_logic_vector (7 downto 0); -- soma1, soma2, etc...
 	signal s_S2 : std_logic_vector (7 downto 0);
@@ -76,14 +76,14 @@ architecture arq_Diff_Eq of Diff_Eq is
 -------ARCH--------
 -------------------
 begin
-	STAGE1: process (clock, load) 
+	STAGE1: process (clock, load, contador) 
 	begin
 		if (clock'event AND clock = '1' AND load = '1') then
 			s_x <= x;  -- so carrega no primeiro ciclo
 			s_y <= y;
 			s_u <= u;
-			
-			if (contador < a) then				
+		else 	
+			if (rising_edge(clock)  AND (contador < a)) then				
 				s_x1 <= s_S1 (7 downto 0);
 			    s_u1 <= s_S3 (7 downto 0);
 				s_y1 <= s_S4 (7 downto 0);
@@ -101,12 +101,12 @@ begin
 	end process;
 
 
-	STAGE2: process (clock)
-	begin
-		if(s_STAGE = 2) then
+	--STAGE2: process (clock)
+	--begin
+	--	if(s_STAGE = 2) then
 			-- s_STAGE <= '1';
-		end if;
-	end process;
+	--	end if;
+--	end process;
 
 -------------------
 -----PORTMAPS------
